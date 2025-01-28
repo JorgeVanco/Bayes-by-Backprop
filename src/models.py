@@ -18,14 +18,17 @@ class BayesianLayer(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         batch_size: int = x.shape[0]
+        device = x.device
 
         eps: torch.Tensor = self.normal.rsample(
             (batch_size, self.in_features, self.out_features)
-        )
-        eps_bias: torch.Tensor = self.normal.rsample((batch_size, self.out_features))
+        ).to(device)
+        eps_bias: torch.Tensor = self.normal.rsample(
+            (batch_size, self.out_features)
+        ).to(device)
 
-        sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro))
-        sigma_bias: torch.Tensor = torch.log(1 + torch.exp(self.ro_bias))
+        sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro)).to(device)
+        sigma_bias: torch.Tensor = torch.log(1 + torch.exp(self.ro_bias)).to(device)
 
         weights: torch.Tensor = eps * sigma + self.mu
         bias: torch.Tensor = eps_bias * sigma_bias + self.mu_bias
@@ -35,22 +38,22 @@ class BayesianLayer(nn.Module):
 
 class BayesModel(nn.Module):
     def __init__(
-        self, input_size: int, hidden_layers: tuple[int, ...], output_size: int
+        self, input_size: int, output_size: int, hidden_sizes: tuple[int, ...]
     ) -> None:
         super().__init__()
 
         self.model: nn.Sequential = nn.Sequential(
-            BayesianLayer(input_size, hidden_layers[0]),
+            BayesianLayer(input_size, hidden_sizes[0]),
             nn.ReLU(inplace=True),
             *[
                 torch.nn.Sequential(
-                    BayesianLayer(hidden_layers[i], hidden_layers[i + 1]),
+                    BayesianLayer(hidden_sizes[i], hidden_sizes[i + 1]),
                     nn.ReLU(inplace=True),
                 )
-                for i in range(1, len(hidden_layers) - 1)
+                for i in range(0, len(hidden_sizes) - 1)
             ],
-            BayesianLayer(hidden_layers[-1], output_size),
+            BayesianLayer(hidden_sizes[-1], output_size),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        return self.model(x.view(x.shape[0], -1))
