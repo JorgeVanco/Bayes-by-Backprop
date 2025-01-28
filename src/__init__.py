@@ -31,3 +31,26 @@ class BayesianLayer(nn.Module):
         bias: torch.Tensor = eps_bias * sigma_bias + self.mu_bias
 
         return (x.unsqueeze(1) @ weights).squeeze() + bias
+
+
+class BayesModel(nn.Module):
+    def __init__(
+        self, input_size: int, hidden_layers: tuple[int, ...], output_size: int
+    ) -> None:
+        super().__init__()
+
+        self.model: nn.Sequential = nn.Sequential(
+            BayesianLayer(input_size, hidden_layers[0]),
+            nn.ReLU(inplace=True),
+            *[
+                torch.nn.Sequential(
+                    BayesianLayer(hidden_layers[i], hidden_layers[i + 1]),
+                    nn.ReLU(inplace=True),
+                )
+                for i in range(1, len(hidden_layers) - 1)
+            ],
+            BayesianLayer(hidden_layers[-1], output_size),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
