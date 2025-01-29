@@ -14,17 +14,15 @@ class BayesianLayer(nn.Module):
         self.mu_bias: nn.Parameter = nn.Parameter(torch.randn(1, out_features))
         self.ro_bias: nn.Parameter = nn.Parameter(torch.randn(1, out_features))
 
-        self.normal: Normal = Normal(0, 1)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         batch_size: int = x.shape[0]
         device = x.device
 
-        eps: torch.Tensor = self.normal.rsample(
-            (batch_size, self.in_features, self.out_features)
+        eps: torch.Tensor = torch.normal(
+            torch.zeros(batch_size, self.in_features, self.out_features)
         ).to(device)
-        eps_bias: torch.Tensor = self.normal.rsample(
-            (batch_size, self.out_features)
+        eps_bias: torch.Tensor = torch.normal(
+            torch.ones(batch_size, self.out_features)
         ).to(device)
 
         sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro)).to(device)
