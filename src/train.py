@@ -55,7 +55,7 @@ def main() -> None:
     optimizer: torch.optim.Optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # train loop
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs), desc="epochs", position=0):
         # call train step
         train_step(model, train_data, loss, optimizer, writer, epoch, device)
 

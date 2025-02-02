@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 # own modules
 from src.utils import accuracy
@@ -35,7 +36,7 @@ def train_step(
     accuracies: list[float] = []
 
     model.train()
-    for batch, targets in train_data:
+    for batch, targets in tqdm(train_data, desc="batches", position=1, leave=False):
         optimizer.zero_grad()
 
         batch = batch.to(device)
@@ -78,7 +79,7 @@ def val_step(
     running_accuracy: float = 0.0
     model.eval()
     with torch.no_grad():
-        for batch, targets in val_data:
+        for batch, targets in tqdm(val_data, desc="batches", position=1, leave=False):
             batch = batch.to(device)
             targets = targets.to(device)
 
@@ -116,7 +117,7 @@ def t_step(
     model.eval()
     running_accuracy: float = 0.0
     with torch.no_grad():
-        for batch, targets in test_data:
+        for batch, targets in tqdm(test_data, desc="batches", position=1, leave=False):
             batch = batch.to(device)
             targets = targets.to(device)
 
