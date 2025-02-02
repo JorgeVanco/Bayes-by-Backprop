@@ -2,6 +2,7 @@
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch.nn.functional import cross_entropy
 
 # other libraries
 from tqdm.auto import tqdm
@@ -20,6 +21,10 @@ NUM_CLASSES: Final[int] = 10
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
+def loss_function(inputs, targets, model) -> torch.Tensor:
+    return cross_entropy(inputs, targets) - model.log_prior() + model.log_p_weights()
+
+
 def main() -> None:
     """
     This function is the main program for training.
@@ -27,9 +32,9 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 100
+    epochs: int = 10
     lr: float = 1e-3
-    batch_size: int = 32
+    batch_size: int = 128
     hidden_sizes: tuple[int, ...] = (256, 128, 64)
 
     # empty nohup file
@@ -38,10 +43,12 @@ def main() -> None:
     # load data
     train_data: DataLoader
     val_data: DataLoader
-    train_data, val_data, _ = load_data(DATA_PATH, batch_size=64)
+    train_data, val_data, _ = load_data(DATA_PATH, batch_size=batch_size)
 
     # define name and writer
-    name: str = f"model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+    name: str = (
+        "test5"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+    )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
     # define model
@@ -51,7 +58,7 @@ def main() -> None:
     ).to(device)
 
     # define loss and optimizer
-    loss: torch.nn.Module = torch.nn.CrossEntropyLoss()
+    loss = loss_function
     optimizer: torch.optim.Optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # train loop

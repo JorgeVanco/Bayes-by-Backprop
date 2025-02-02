@@ -44,7 +44,7 @@ def train_step(
 
         outputs = model(batch)
 
-        loss_val = loss(outputs, targets)
+        loss_val = loss(outputs, targets, model)
         loss_val.backward()
         optimizer.step()
         losses.append(loss_val.item())
@@ -85,7 +85,7 @@ def val_step(
 
             outputs = model(batch)
 
-            loss_val = loss(outputs, targets)
+            loss_val = loss(outputs, targets, model)
 
             running_loss += loss_val.item()
             running_accuracy += accuracy(outputs, targets).item()
