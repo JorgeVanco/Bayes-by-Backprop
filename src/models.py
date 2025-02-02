@@ -5,7 +5,13 @@ from torch.distributions.normal import Normal
 
 class BayesianLayer(nn.Module):
     def __init__(
-        self, in_features: int, out_features: int, sigma1: int, sigma2: int, pi
+        self,
+        in_features: int,
+        out_features: int,
+        sigma1: int,
+        sigma2: int,
+        pi: float,
+        repeat_n_times: int = 1,
     ) -> None:
         super().__init__()
         self.in_features: int = in_features
@@ -18,17 +24,21 @@ class BayesianLayer(nn.Module):
 
         self.sigma1: int = sigma1
         self.sigma2: int = sigma2
-        self.pi = pi
+        self.pi: float = pi
+
+        self.repeat_n_times: int = repeat_n_times
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         batch_size: int = x.shape[0]
         device = x.device
 
         eps: torch.Tensor = torch.normal(
-            torch.zeros(batch_size, self.in_features, self.out_features)
+            torch.zeros(
+                batch_size, self.repeat_n_times, self.in_features, self.out_features
+            )
         ).to(device)
         eps_bias: torch.Tensor = torch.normal(
-            torch.zeros(batch_size, self.out_features)
+            torch.zeros(batch_size, self.repeat_n_times, self.out_features)
         ).to(device)
 
         sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro)).to(device)
@@ -45,15 +55,20 @@ class BayesianLayer(nn.Module):
             + scale_gaussian_mixture(bias, self.pi, self.sigma1, self.sigma2)
             .log()
             .sum()
-        ) / batch_size
+        ) / (batch_size * self.repeat_n_times)
 
         # Calculate log probability of weights
         self.log_p_weights = (
             gaussian(weights, self.mu, sigma).log().sum()
             + gaussian(bias, self.mu_bias, sigma_bias).log().sum()
-        ) / batch_size
+        ) / (batch_size * self.repeat_n_times)
 
-        return (x.unsqueeze(1) @ weights).squeeze() + bias
+        return (
+            (x.unsqueeze(1).repeat(1, self.repeat_n_times, 1).unsqueeze(1) @ weights)[
+                :, :, 0, :
+            ]
+            + bias
+        ).mean(dim=1)
 
 
 class BayesModel(nn.Module):
@@ -65,6 +80,7 @@ class BayesModel(nn.Module):
         neglog_sigma1: int = 1,
         neglog_sigma2: int = 6,
         pi=1 / 4,
+        repeat_n_times: int = 1,
     ) -> None:
         super().__init__()
 
@@ -72,8 +88,17 @@ class BayesModel(nn.Module):
         self.sigma2: float = 10**-neglog_sigma2
         self.pi: float = pi
 
+        self.repeat_n_times = repeat_n_times
+
         self.model: nn.Sequential = nn.Sequential(
-            BayesianLayer(input_size, hidden_sizes[0], self.sigma1, self.sigma2, pi),
+            BayesianLayer(
+                input_size,
+                hidden_sizes[0],
+                self.sigma1,
+                self.sigma2,
+                pi,
+                repeat_n_times,
+            ),
             nn.ReLU(inplace=True),
             *[
                 torch.nn.Sequential(
@@ -83,12 +108,20 @@ class BayesModel(nn.Module):
                         self.sigma1,
                         self.sigma2,
                         pi,
+                        repeat_n_times,
                     ),
                     nn.ReLU(inplace=True),
                 )
                 for i in range(0, len(hidden_sizes) - 1)
             ],
-            BayesianLayer(hidden_sizes[-1], output_size, self.sigma1, self.sigma2, pi),
+            BayesianLayer(
+                hidden_sizes[-1],
+                output_size,
+                self.sigma1,
+                self.sigma2,
+                pi,
+                repeat_n_times,
+            ),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
