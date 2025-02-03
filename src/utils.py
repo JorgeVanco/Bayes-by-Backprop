@@ -28,7 +28,9 @@ def load_data(
     """
 
     # define transforms
-    transformations = transforms.Compose([transforms.ToTensor()])
+    transformations = transforms.Compose(
+        [transforms.ToTensor(), transforms.Lambda(lambda img: img * 255.0 / 126.0)]
+    )
 
     train_dataset: torchvision.datasets.MNIST = torchvision.datasets.MNIST(
         path, download=True, transform=transformations, train=True
