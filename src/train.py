@@ -21,8 +21,9 @@ NUM_CLASSES: Final[int] = 10
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def loss_function(inputs, targets, model) -> torch.Tensor:
-    return cross_entropy(inputs, targets) - model.log_prior() + model.log_p_weights()
+def loss_function(inputs, targets, model, m) -> torch.Tensor:
+    kl_loss = model.log_p_weights() - model.log_prior()
+    return 1.0 / m * kl_loss + cross_entropy(inputs, targets)
 
 
 def main() -> None:
@@ -32,11 +33,11 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 80
+    epochs: int = 5
     lr: float = 1e-3
     batch_size: int = 128
     hidden_sizes: tuple[int, ...] = (256, 128, 64)
-    repeat_n_times: int = 5
+    repeat_n_times: int = 2
 
     # empty nohup file
     open("nohup.out", "w").close()
@@ -48,7 +49,7 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "repeat_n_times"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "fraction_kl_loss"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 

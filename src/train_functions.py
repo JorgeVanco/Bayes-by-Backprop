@@ -34,7 +34,7 @@ def train_step(
     # define metric lists
     losses: list[float] = []
     accuracies: list[float] = []
-
+    m = len(train_data)
     model.train()
     for batch, targets in tqdm(train_data, desc="batches", position=1, leave=False):
         optimizer.zero_grad()
@@ -44,7 +44,7 @@ def train_step(
 
         outputs = model(batch)
 
-        loss_val = loss(outputs, targets, model)
+        loss_val = loss(outputs, targets, model, m)
         loss_val.backward()
         optimizer.step()
         losses.append(loss_val.item())
@@ -77,6 +77,7 @@ def val_step(
 
     running_loss: float = 0.0
     running_accuracy: float = 0.0
+    m = len(val_data)
     model.eval()
     with torch.no_grad():
         for batch, targets in tqdm(val_data, desc="batches", position=1, leave=False):
@@ -85,7 +86,7 @@ def val_step(
 
             outputs = model(batch)
 
-            loss_val = loss(outputs, targets, model)
+            loss_val = loss(outputs, targets, model, m)
 
             running_loss += loss_val.item()
             running_accuracy += accuracy(outputs, targets).item()
