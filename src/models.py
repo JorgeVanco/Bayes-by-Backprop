@@ -62,15 +62,17 @@ class BayesianLayer(nn.Module):
             scale_gaussian_mixture(weights, self.pi, self.sigma1, self.sigma2)
             .log()
             .sum()
+            / weights.numel()
             + scale_gaussian_mixture(bias, self.pi, self.sigma1, self.sigma2)
             .log()
             .sum()
+            / bias.numel()
         ) / (batch_size * self.repeat_n_times)
 
         # Calculate log probability of weights
         self.log_p_weights = (
-            gaussian(weights, self.mu, sigma).log().sum()
-            + gaussian(bias, self.mu_bias, sigma_bias).log().sum()
+            gaussian(weights, self.mu, sigma).log().sum() / weights.numel()
+            + gaussian(bias, self.mu_bias, sigma_bias).log().sum() / bias.numel()
         ) / (batch_size * self.repeat_n_times)
 
         return (
