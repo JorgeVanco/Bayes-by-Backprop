@@ -33,7 +33,7 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 5
+    epochs: int = 100
     lr: float = 1e-3
     batch_size: int = 128
     hidden_sizes: tuple[int, ...] = (256, 128, 64)
@@ -49,7 +49,7 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "fraction_kl_loss"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "run_correct_initialization"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 

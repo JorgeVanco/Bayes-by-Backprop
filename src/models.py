@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 from torch.distributions.normal import Normal
+import math
 
 
 class BayesianLayer(nn.Module):
@@ -17,10 +18,19 @@ class BayesianLayer(nn.Module):
         self.in_features: int = in_features
         self.out_features: int = out_features
         self.mu: nn.Parameter = nn.Parameter(torch.randn(in_features, out_features))
-        self.ro: nn.Parameter = nn.Parameter(torch.randn(in_features, out_features))
+        self.ro: nn.Parameter = nn.Parameter(
+            torch.Tensor(in_features, out_features).normal_(-8, 0.05)
+        )
+        torch.nn.init.kaiming_uniform_(self.mu, nonlinearity="relu")
 
         self.mu_bias: nn.Parameter = nn.Parameter(torch.randn(1, out_features))
-        self.ro_bias: nn.Parameter = nn.Parameter(torch.randn(1, out_features))
+        self.ro_bias: nn.Parameter = nn.Parameter(
+            torch.Tensor(1, out_features).normal_(-8, 0.05)
+        )
+
+        fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.mu)
+        bound = 1 / math.sqrt(fan_in)
+        torch.nn.init.uniform_(self.mu_bias, -bound, bound)
 
         self.sigma1: int = sigma1
         self.sigma2: int = sigma2
