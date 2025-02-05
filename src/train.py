@@ -2,7 +2,6 @@
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn.functional import cross_entropy
 
 # other libraries
 from tqdm.auto import tqdm
@@ -11,7 +10,7 @@ from typing import Final
 # own modules
 from src.utils import load_data, save_model
 from src.models import BayesModel
-from src.train_functions import train_step, val_step
+from src.train_functions import train_step, val_step, loss_function
 
 # static variables
 DATA_PATH: Final[str] = "data"
@@ -21,11 +20,6 @@ NUM_CLASSES: Final[int] = 10
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def loss_function(inputs, targets, model, m) -> torch.Tensor:
-    kl_loss = model.log_p_weights() - model.log_prior()
-    return 1.0 / m * kl_loss + cross_entropy(inputs, targets)
-
-
 def main() -> None:
     """
     This function is the main program for training.
@@ -33,11 +27,12 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 100
+    epochs: int = 5
     lr: float = 1e-3
     batch_size: int = 128
     hidden_sizes: tuple[int, ...] = (256, 128, 64)
     repeat_n_times: int = 2
+    kl_reweighting: bool = True
 
     # empty nohup file
     open("nohup.out", "w").close()
@@ -49,7 +44,7 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "run_correct_initialization"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "run_shape_previous_reweighting"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
@@ -69,7 +64,9 @@ def main() -> None:
     # train loop
     for epoch in tqdm(range(epochs), desc="epochs", position=0):
         # call train step
-        train_step(model, train_data, loss, optimizer, writer, epoch, device)
+        train_step(
+            model, train_data, loss, optimizer, writer, epoch, device, kl_reweighting
+        )
 
         # call val step
         val_step(model, val_data, loss, writer, epoch, device)

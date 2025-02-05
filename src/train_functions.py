@@ -1,12 +1,18 @@
 # deep learning libraries
 import torch
 import numpy as np
+from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 # own modules
 from src.utils import accuracy
+
+
+def loss_function(inputs, targets, model, kl_weight) -> torch.Tensor:
+    kl_loss = model.log_p_weights() - model.log_prior()
+    return kl_weight * kl_loss + cross_entropy(inputs, targets)
 
 
 def train_step(
@@ -17,6 +23,7 @@ def train_step(
     writer: SummaryWriter,
     epoch: int,
     device: torch.device,
+    kl_reweighting: bool = False,
 ) -> None:
     """
     This function computes the training step.
@@ -34,9 +41,13 @@ def train_step(
     # define metric lists
     losses: list[float] = []
     accuracies: list[float] = []
-    m = len(train_data)
+    M: int = len(train_data)
+    pi_i: float = 1.0 / M
+    reweighting_denominator: int = 2**M - 1
     model.train()
-    for batch, targets in tqdm(train_data, desc="batches", position=1, leave=False):
+    for batch_idx, (batch, targets) in enumerate(
+        tqdm(train_data, desc="batches", position=1, leave=False)
+    ):
         optimizer.zero_grad()
 
         batch = batch.to(device)
@@ -44,7 +55,9 @@ def train_step(
 
         outputs = model(batch)
 
-        loss_val = loss(outputs, targets, model, m)
+        if kl_reweighting:
+            pi_i = (2 ** (M - batch_idx + 1)) / reweighting_denominator
+        loss_val = loss(outputs, targets, model, pi_i)
         loss_val.backward()
         optimizer.step()
         losses.append(loss_val.item())
@@ -77,7 +90,7 @@ def val_step(
 
     running_loss: float = 0.0
     running_accuracy: float = 0.0
-    m = len(val_data)
+    pi_i: float = 1.0 / len(val_data)
     model.eval()
     with torch.no_grad():
         for batch, targets in tqdm(val_data, desc="batches", position=1, leave=False):
@@ -86,7 +99,7 @@ def val_step(
 
             outputs = model(batch)
 
-            loss_val = loss(outputs, targets, model, m)
+            loss_val = loss(outputs, targets, model, pi_i)
 
             running_loss += loss_val.item()
             running_accuracy += accuracy(outputs, targets).item()
