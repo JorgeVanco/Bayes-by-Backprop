@@ -3,6 +3,8 @@ import torch
 from torch.distributions.normal import Normal
 import math
 
+from src.bayes_utils import gaussian, scale_gaussian_mixture
+
 
 class BayesianLayer(nn.Module):
     def __init__(
