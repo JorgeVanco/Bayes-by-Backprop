@@ -1,3 +1,4 @@
+from turtle import forward
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
@@ -11,8 +12,8 @@ class BayesianLayer(nn.Module):
         self,
         in_features: int,
         out_features: int,
-        sigma1: int,
-        sigma2: int,
+        sigma1: float,
+        sigma2: float,
         pi: float,
         repeat_n_times: int = 1,
     ) -> None:
@@ -166,8 +167,8 @@ class BayesianConv(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        sigma1: int,
-        sigma2: int,
+        sigma1: float,
+        sigma2: float,
         pi: float,
         repeat_n_times: int = 1,
         kernel_size: int = 3,
@@ -241,6 +242,83 @@ class BayesianConv(nn.Module):
         ).mean(dim=1)
 
 
+class BayesConvBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        sigma1: float,
+        sigma2: float,
+        pi: float,
+        repeat_n_times: int,
+        stride: int,
+    ) -> None:
+        super().__init__()
+
+        self.block = nn.Sequential(
+            BayesianConv(
+                in_channels,
+                out_channels,
+                sigma1,
+                sigma2,
+                pi,
+                repeat_n_times,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            ),
+            nn.ReLU(inplace=True),
+            BayesianConv(
+                out_channels,
+                out_channels,
+                sigma1,
+                sigma2,
+                pi,
+                repeat_n_times,
+                kernel_size=3,
+                stride=stride,
+                padding=1,
+            ),
+            nn.ReLU(inplace=True),
+            BayesianConv(
+                out_channels,
+                out_channels,
+                sigma1,
+                sigma2,
+                pi,
+                repeat_n_times,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            ),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.block(x)
+
+    @property
+    def log_prior(self) -> torch.Tensor:
+        prior: float = 0.0
+        num_layers: int = 0
+        for layer in self.block:
+            if isinstance(layer, (BayesianLayer, BayesianConv)):
+                prior += layer.log_prior
+                num_layers += 1
+        return prior / num_layers
+
+    @property
+    def log_p_weights(self) -> float:
+        p: float = 0.0
+        num_layers: int = 0
+        for layer in self.block:
+            if isinstance(layer, (BayesianLayer, BayesianConv)):
+                p += layer.log_p_weights
+                num_layers += 1
+
+        return p / num_layers
+
+
 class BayesConvModel(nn.Module):
     def __init__(
         self,
@@ -251,53 +329,68 @@ class BayesConvModel(nn.Module):
         neglog_sigma2: int = 6,
         pi: float = 1 / 4,
         repeat_n_times: int = 1,
-    ):
+    ) -> None:
         super().__init__()
         self.sigma1: float = 10**-neglog_sigma1
         self.sigma2: float = 10**-neglog_sigma2
         self.pi: float = pi
 
         self.repeat_n_times: int = repeat_n_times
-        self.conv = BayesianConv(
-            input_size, 64, self.sigma1, self.sigma2, self.pi, self.repeat_n_times
-        )
-        self.relu = nn.ReLU(inplace=True)
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.flatten = nn.Flatten()
-        self.linear = BayesianLayer(64, output_size, self.sigma1, self.sigma2, self.pi)
+
         self.model = torch.nn.Sequential(
-            self.conv, self.relu, self.avg_pool, self.flatten, self.linear
+            BayesConvBlock(
+                input_size,
+                hidden_sizes[0],
+                self.sigma1,
+                self.sigma2,
+                self.pi,
+                self.repeat_n_times,
+                stride=2,
+            ),
+            *[
+                BayesConvBlock(
+                    hidden_sizes[i],
+                    hidden_sizes[i + 1],
+                    self.sigma1,
+                    self.sigma2,
+                    self.pi,
+                    self.repeat_n_times,
+                    stride=2,
+                )
+                for i in range(0, len(hidden_sizes) - 1)
+            ],
+            BayesConvBlock(
+                hidden_sizes[-1],
+                4 * output_size,
+                self.sigma1,
+                self.sigma2,
+                self.pi,
+                self.repeat_n_times,
+                stride=2,
+            ),
+            torch.nn.AdaptiveAvgPool2d((1, 1)),
+            torch.nn.Flatten(),
+            torch.nn.Linear(4 * output_size, output_size),
         )
 
-    def forward(self, x):
-        o = self.conv(x)
-        o = self.relu(o)
-        o = self.avg_pool(o)
-        o = self.flatten(o)
-
-        return self.linear(o)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
 
     def log_prior(self) -> torch.Tensor:
         prior: float = 0.0
         num_layers: int = 0
         for layer in self.model:
-            if isinstance(layer, BayesianLayer) or isinstance(layer, BayesianConv):
+            if isinstance(layer, (BayesianLayer, BayesianConv, BayesConvBlock)):
                 prior += layer.log_prior
                 num_layers += 1
         return prior / num_layers
 
-    def log_p_weights(self):
+    def log_p_weights(self) -> float:
         p: float = 0.0
         num_layers: int = 0
         for layer in self.model:
-            if isinstance(layer, BayesianLayer) or isinstance(layer, BayesianConv):
+            if isinstance(layer, (BayesianLayer, BayesianConv, BayesConvBlock)):
                 p += layer.log_p_weights
                 num_layers += 1
 
         return p / num_layers
-
-
-# BayesianConv(3, 10, 3, 2, 1)
-# torch.nn.functional.conv2d(
-#     torch.randn(8, 3, 24, 24), torch.randn(10, 3, 3, 3), torch.randn(10), stride=1
-# )

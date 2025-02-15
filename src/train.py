@@ -12,6 +12,7 @@ from src.utils import load_data, save_model
 from src.models import BayesModel, BayesConvModel
 from src.train_functions import train_step, val_step, loss_function
 
+torch.autograd.set_detect_anomaly(True)
 # static variables
 DATA_PATH: Final[str] = "data"
 NUM_CLASSES: Final[int] = 10
@@ -27,10 +28,10 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 150
+    epochs: int = 20
     lr: float = 1e-3
     batch_size: int = 128
-    hidden_sizes: tuple[int, ...] = (256, 128, 64)
+    hidden_sizes: tuple[int, ...] = (64, 128)  # (256, 128, 64)
     repeat_n_times: int = 2
     kl_reweighting: bool = True
 
@@ -44,7 +45,7 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "BayesConvModel_test2"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "BayesConvModel"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
@@ -57,9 +58,9 @@ def main() -> None:
     #     hidden_sizes=hidden_sizes,
     #     repeat_n_times=repeat_n_times,
     # ).to(device)
-    model: torch.nn.Module = BayesConvModel(inputs.shape[1], NUM_CLASSES, (2, 3)).to(
-        device
-    )
+    model: torch.nn.Module = BayesConvModel(
+        inputs.shape[1], NUM_CLASSES, hidden_sizes
+    ).to(device)
 
     # define loss and optimizer
     loss = loss_function
