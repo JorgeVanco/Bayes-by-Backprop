@@ -9,7 +9,7 @@ from typing import Final
 
 # own modules
 from src.utils import load_data, save_model
-from src.models import BayesModel
+from src.models import BayesModel, BayesConvModel
 from src.train_functions import train_step, val_step, loss_function
 
 # static variables
@@ -27,7 +27,7 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    epochs: int = 5
+    epochs: int = 150
     lr: float = 1e-3
     batch_size: int = 128
     hidden_sizes: tuple[int, ...] = (256, 128, 64)
@@ -44,18 +44,22 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "run_shape_previous_reweighting"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "BayesConvModel_test2"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
     # define model
     inputs: torch.Tensor = next(iter(train_data))[0]
-    model: torch.nn.Module = BayesModel(
-        inputs.shape[2] * inputs.shape[3],
-        NUM_CLASSES,
-        hidden_sizes=hidden_sizes,
-        repeat_n_times=repeat_n_times,
-    ).to(device)
+
+    # model: torch.nn.Module = BayesModel(
+    #     inputs.shape[2] * inputs.shape[3],
+    #     NUM_CLASSES,
+    #     hidden_sizes=hidden_sizes,
+    #     repeat_n_times=repeat_n_times,
+    # ).to(device)
+    model: torch.nn.Module = BayesConvModel(inputs.shape[1], NUM_CLASSES, (2, 3)).to(
+        device
+    )
 
     # define loss and optimizer
     loss = loss_function

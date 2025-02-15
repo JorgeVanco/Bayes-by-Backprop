@@ -30,7 +30,7 @@ def main() -> None:
     _, _, test_data = load_data(DATA_PATH, batch_size=64)
 
     # define name and writer
-    name: str = "model_lr_0.001_hs_(256, 128, 64)_32_10"
+    name: str = "run_shape_paper_normalized_loss"
 
     # define model
     model: RecursiveScriptModule = torch.jit.load(f"models/{name}.pt").to(device)
