@@ -45,7 +45,7 @@ def main() -> None:
 
     # define name and writer
     name: str = (
-        "BayesConvModel"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
+        "BayesConvModel_repeat_2_times"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     )
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
@@ -59,7 +59,7 @@ def main() -> None:
     #     repeat_n_times=repeat_n_times,
     # ).to(device)
     model: torch.nn.Module = BayesConvModel(
-        inputs.shape[1], NUM_CLASSES, hidden_sizes
+        inputs.shape[1], NUM_CLASSES, hidden_sizes, repeat_n_times=repeat_n_times
     ).to(device)
 
     # define loss and optimizer

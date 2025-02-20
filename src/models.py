@@ -175,7 +175,7 @@ class BayesianConv(nn.Module):
         stride: int = 1,
         padding: int = 0,
         dilation: int = 1,
-    ):
+    ) -> None:
         super().__init__()
         self.shape = (out_channels, in_channels, kernel_size, kernel_size)
         self.in_channels: int = in_channels
@@ -206,40 +206,41 @@ class BayesianConv(nn.Module):
         batch_size: int = x.shape[0]
         device = x.device
 
-        eps: torch.Tensor = torch.normal(torch.zeros(self.shape)).to(device)
-        eps_bias: torch.Tensor = torch.normal(torch.zeros(self.out_channels)).to(device)
+        results = []
+        for _ in range(self.repeat_n_times):
+            eps: torch.Tensor = torch.normal(torch.zeros(self.shape)).to(device)
+            eps_bias: torch.Tensor = torch.normal(torch.zeros(self.out_channels)).to(
+                device
+            )
 
-        sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro)).to(device)
-        sigma_bias: torch.Tensor = torch.log(1 + torch.exp(self.ro_bias)).to(device)
+            sigma: torch.Tensor = torch.log(1 + torch.exp(self.ro)).to(device)
+            sigma_bias: torch.Tensor = torch.log(1 + torch.exp(self.ro_bias)).to(device)
 
-        weights: torch.Tensor = eps * sigma + self.mu
-        bias: torch.Tensor = eps_bias * sigma_bias + self.mu_bias
+            weights: torch.Tensor = eps * sigma + self.mu
+            bias: torch.Tensor = eps_bias * sigma_bias + self.mu_bias
 
-        # calculate prior
-        self.log_prior = (
-            scale_gaussian_mixture(weights, self.pi, self.sigma1, self.sigma2)
-            .log()
-            .sum()
-            / weights.numel()
-            + scale_gaussian_mixture(bias, self.pi, self.sigma1, self.sigma2)
-            .log()
-            .sum()
-            / bias.numel()
-        ) / (batch_size * self.repeat_n_times)
+            # calculate prior
+            self.log_prior = (
+                scale_gaussian_mixture(weights, self.pi, self.sigma1, self.sigma2)
+                .log()
+                .sum()
+                / weights.numel()
+                + scale_gaussian_mixture(bias, self.pi, self.sigma1, self.sigma2)
+                .log()
+                .sum()
+                / bias.numel()
+            ) / (batch_size * self.repeat_n_times)
 
-        # Calculate log probability of weights
-        self.log_p_weights = (
-            gaussian(weights, self.mu, sigma).log().sum() / weights.numel()
-            + gaussian(bias, self.mu_bias, sigma_bias).log().sum() / bias.numel()
-        ) / (batch_size * self.repeat_n_times)
-
-        return F.conv2d(x, weights, bias, self.stride, self.padding, self.dilation)
-        return (
-            (x.unsqueeze(1).repeat(1, self.repeat_n_times, 1).unsqueeze(1) @ weights)[
-                :, :, 0, :
-            ]
-            + bias
-        ).mean(dim=1)
+            # Calculate log probability of weights
+            self.log_p_weights = (
+                gaussian(weights, self.mu, sigma).log().sum() / weights.numel()
+                + gaussian(bias, self.mu_bias, sigma_bias).log().sum() / bias.numel()
+            ) / (batch_size * self.repeat_n_times)
+            result = F.conv2d(
+                x, weights, bias, self.stride, self.padding, self.dilation
+            )
+            results.append(result)
+        return torch.stack(results).mean(0)
 
 
 class BayesConvBlock(nn.Module):
