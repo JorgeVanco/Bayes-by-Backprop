@@ -5,7 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # other libraries
 from tqdm.auto import tqdm
-from typing import Final
+from typing import Final, Literal
 
 # own modules
 from src.utils import load_data, save_model
@@ -28,10 +28,11 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
+    model_type: Literal["conv", "linear"] = "conv"
     epochs: int = 20
     lr: float = 1e-3
     batch_size: int = 128
-    hidden_sizes: tuple[int, ...] = (64, 128)  # (256, 128, 64)
+    hidden_sizes: tuple[int, ...] = (256, 128, 64)  # (64, 128)  # (256, 128, 64)
     repeat_n_times: int = 2
     kl_reweighting: bool = True
 
@@ -44,28 +45,29 @@ def main() -> None:
     train_data, val_data, _ = load_data(DATA_PATH, batch_size=batch_size)
 
     # define name and writer
-    name: str = (
-        "BayesConvModel_repeat_2_times"  # f"inicialization_model_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
-    )
+    name: str = f"{model_type}_lr_{lr}_hs_{hidden_sizes}_{batch_size}_{epochs}"
     writer: SummaryWriter = SummaryWriter(f"runs/{name}")
 
     # define model
     inputs: torch.Tensor = next(iter(train_data))[0]
 
-    # model: torch.nn.Module = BayesModel(
-    #     inputs.shape[2] * inputs.shape[3],
-    #     NUM_CLASSES,
-    #     hidden_sizes=hidden_sizes,
-    #     repeat_n_times=repeat_n_times,
-    # ).to(device)
-    model: torch.nn.Module = BayesConvModel(
-        inputs.shape[1], NUM_CLASSES, hidden_sizes, repeat_n_times=repeat_n_times
-    ).to(device)
+    if model_type == "linear":
+        model: torch.nn.Module = BayesModel(
+            inputs.shape[2] * inputs.shape[3],
+            NUM_CLASSES,
+            hidden_sizes=hidden_sizes,
+            repeat_n_times=repeat_n_times,
+        ).to(device)
+    elif model_type == "conv":
+        model: torch.nn.Module = BayesConvModel(
+            inputs.shape[1], NUM_CLASSES, hidden_sizes, repeat_n_times=repeat_n_times
+        ).to(device)
 
     # define loss and optimizer
     loss = loss_function
     optimizer: torch.optim.Optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
+    print(f"Training: {name}")
     # train loop
     for epoch in tqdm(range(epochs), desc="epochs", position=0):
         # call train step

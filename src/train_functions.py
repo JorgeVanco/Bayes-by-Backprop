@@ -11,7 +11,7 @@ from src.utils import accuracy
 
 
 def loss_function(inputs, targets, model, kl_weight) -> torch.Tensor:
-    kl_loss = model.log_p_weights() - model.log_prior()
+    kl_loss = model.log_p_weights - model.log_prior
     return kl_weight * kl_loss + cross_entropy(inputs, targets)
 
 
