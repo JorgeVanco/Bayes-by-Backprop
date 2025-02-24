@@ -17,3 +17,5 @@ __pycache__/
 !models/best_model.pt
 *.ini
 *.zip
+
+!accuracy.csv

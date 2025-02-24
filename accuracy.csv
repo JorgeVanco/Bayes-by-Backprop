@@ -1,0 +1,4 @@
+Dataset,Linear,LinearBayes,Conv,ConvBayes
+train,0.9951,0.9941,0.9947,0.9952
+validation,0.9676,0.9662,0.9886,0.9901
+test,0.9693,0.9707,0.9909,0.9920

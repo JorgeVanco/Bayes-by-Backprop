@@ -4,12 +4,10 @@ from torch.utils.data import DataLoader
 from torch.jit import RecursiveScriptModule
 
 # other libraries
-from tqdm.auto import tqdm
 from typing import Final
 
 # own modules
-from src.utils import load_data, save_model
-from src.models import BayesModel
+from src.utils import load_data
 from src.train_functions import t_step
 
 # static variables
@@ -30,7 +28,7 @@ def main() -> None:
     _, _, test_data = load_data(DATA_PATH, batch_size=64)
 
     # define name and writer
-    name: str = "run_shape_paper_normalized_loss"
+    name: str = "linear_lr_0.001_hs_(256, 128)_128_10"
 
     # define model
     model: RecursiveScriptModule = torch.jit.load(f"models/{name}.pt").to(device)
