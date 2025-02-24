@@ -9,8 +9,13 @@ from typing import Final, Literal
 
 # own modules
 from src.utils import load_data, save_model
-from src.models import BayesModel, BayesConvModel
-from src.train_functions import train_step, val_step, loss_function
+from src.models import BayesModel, BayesConvModel, ConvModel, LinearModel
+from src.train_functions import (
+    train_step,
+    val_step,
+    loss_function,
+    cross_entropy_loss_function,
+)
 
 torch.autograd.set_detect_anomaly(True)
 # static variables
@@ -28,12 +33,12 @@ def main() -> None:
     print("Using: ", device)
 
     # hyperparameters
-    model_type: Literal["conv", "linear"] = "conv"
-    epochs: int = 20
+    model_type: Literal["conv", "linear", "convBayes", "linearBayes"] = "linearBayes"
+    epochs: int = 10
     lr: float = 1e-3
     batch_size: int = 128
-    hidden_sizes: tuple[int, ...] = (256, 128, 64)  # (64, 128)  # (256, 128, 64)
-    repeat_n_times: int = 2
+    hidden_sizes: tuple[int, ...] = (256, 128)  # (64, 128)  # (256, 128, 64)
+    repeat_n_times: int = 1
     kl_reweighting: bool = True
 
     # empty nohup file
@@ -51,20 +56,28 @@ def main() -> None:
     # define model
     inputs: torch.Tensor = next(iter(train_data))[0]
 
-    if model_type == "linear":
+    if model_type == "linearBayes":
         model: torch.nn.Module = BayesModel(
             inputs.shape[2] * inputs.shape[3],
             NUM_CLASSES,
             hidden_sizes=hidden_sizes,
             repeat_n_times=repeat_n_times,
         ).to(device)
-    elif model_type == "conv":
+    elif model_type == "convBayes":
         model: torch.nn.Module = BayesConvModel(
             inputs.shape[1], NUM_CLASSES, hidden_sizes, repeat_n_times=repeat_n_times
         ).to(device)
+    elif model_type == "conv":
+        model: torch.nn.Module = ConvModel(
+            inputs.shape[1], NUM_CLASSES, hidden_sizes
+        ).to(device)
+    elif model_type == "linear":
+        model: torch.nn.Module = LinearModel(
+            inputs.shape[2] * inputs.shape[3], NUM_CLASSES, hidden_sizes
+        ).to(device)
 
     # define loss and optimizer
-    loss = loss_function
+    loss = loss_function if "Bayes" in model_type else cross_entropy_loss_function
     optimizer: torch.optim.Optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     print(f"Training: {name}")

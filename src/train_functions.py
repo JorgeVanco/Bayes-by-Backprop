@@ -15,6 +15,10 @@ def loss_function(inputs, targets, model, kl_weight) -> torch.Tensor:
     return kl_weight * kl_loss + cross_entropy(inputs, targets)
 
 
+def cross_entropy_loss_function(inputs, targets, model, kl_weight) -> torch.Tensor:
+    return cross_entropy(inputs, targets)
+
+
 def train_step(
     model: torch.nn.Module,
     train_data: DataLoader,

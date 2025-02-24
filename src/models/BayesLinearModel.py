@@ -57,7 +57,7 @@ class BayesianLinearLayer(BayesianLayer):
 
         # Calculate log probability of weights
         self.calculate_log_p_weights(weights, bias, batch_size, sigma, sigma_bias)
-        return (x.unsqueeze(1).unsqueeze(2) @ weights).squeeze().mean(dim=1)
+        return (x.unsqueeze(1).unsqueeze(2) @ weights).squeeze(2).mean(dim=1)
 
 
 class BayesModel(BayesianModule):

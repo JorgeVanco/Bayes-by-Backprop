@@ -6,13 +6,16 @@ from src.bayes_utils import gaussian, scale_gaussian_mixture
 class BayesianModule(nn.Module):
     def __init__(self) -> None:
         super().__init__()
+        self.is_bayesian: bool = True
 
     @property
     def log_prior(self) -> torch.Tensor:
-        prior: float = 0.0
+        prior: torch.Tensor = torch.tensor(0.0)
         num_layers: int = 0
         for layer in self.model:
-            if issubclass(type(layer), (BayesianLayer, BayesianModule)):
+            if hasattr(
+                layer, "is_bayesian"
+            ):  # issubclass(type(layer), (BayesianLayer, BayesianModule)):
                 prior += layer.log_prior
                 num_layers += 1
         return prior / num_layers
@@ -22,7 +25,9 @@ class BayesianModule(nn.Module):
         p: float = 0.0
         num_layers: int = 0
         for layer in self.model:
-            if issubclass(type(layer), (BayesianLayer, BayesianModule)):
+            if hasattr(
+                layer, "is_bayesian"
+            ):  # issubclass(type(layer), (BayesianLayer, BayesianModule)):
                 p += layer.log_p_weights
                 num_layers += 1
 
@@ -34,8 +39,9 @@ class BayesianLayer(nn.Module):
         self, sigma1: float, sigma2: float, pi: float, repeat_n_times: int
     ) -> None:
         super().__init__()
-        self._log_prior: float = None
-        self._log_p_weights: float = None
+        self.is_bayesian: bool = True
+        self._log_prior: torch.Tensor = torch.empty(1)
+        self._log_p_weights: torch.Tensor = torch.empty(1)
         self.sigma1: int = sigma1
         self.sigma2: int = sigma2
         self.pi: float = pi
@@ -43,11 +49,11 @@ class BayesianLayer(nn.Module):
 
     @property
     def log_prior(self) -> float:
-        return self._log_prior
+        return self._log_prior.item()
 
     @property
     def log_p_weights(self) -> float:
-        return self._log_p_weights
+        return self._log_p_weights.item()
 
     def calculate_log_prior(
         self, weights: torch.Tensor, bias: torch.Tensor, batch_size: int

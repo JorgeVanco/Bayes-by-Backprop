@@ -45,8 +45,8 @@ class BayesianConv(BayesianLayer):
         device = x.device
 
         results = []
-        log_prior: float = 0.0
-        log_p_weights: float = 0.0
+        log_prior: torch.Tensor = torch.tensor(0.0)
+        log_p_weights: torch.Tensor = torch.tensor(0.0)
         for _ in range(self.repeat_n_times):
             eps: torch.Tensor = torch.normal(torch.zeros(self.shape)).to(device)
             eps_bias: torch.Tensor = torch.normal(torch.zeros(self.out_channels)).to(
